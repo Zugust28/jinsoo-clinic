@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jinsoo Clinic - ระบบนัดหมาย</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { min-height: 100px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 w-full max-w-md">
+            <h2 class="text-2xl font-semibold mb-6 text-center text-gray-800">เข้าสู่ระบบ Jinsoo Clinic</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">ชื่อผู้ใช้</label>
+                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2">รหัสผ่าน</label>
+                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition">
+                    เข้าสู่ระบบ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-semibold text-gray-800">Jinsoo Clinic</h1>
+                    <span class="text-gray-500">|</span>
+                    <span id="currentUser" class="text-gray-600"></span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="showAddModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition flex items-center gap-2">
+                        <span>+</span> สร้างนัดใหม่
+                    </button>
+                    <button onclick="logout()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                        ออกจากระบบ
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Legend -->
+        <div class="bg-white border-b">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <div class="flex items-center gap-2"><span class="status-dot bg-blue-500"></span><span>นัดใหม่</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-yellow-500"></span><span>คอนเฟิร์มแล้ว</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-purple-500"></span><span>ลูกค้ามาถึง</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-green-500"></span><span>เสร็จสิ้น</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-gray-400"></span><span>ยกเลิก</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-pink-500"></span><span>รอตอบ</span></div>
+                    <div class="flex items-center gap-2"><span class="status-dot bg-red-500"></span><span>มีปัญหา</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Navigation -->
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-200 rounded-lg">◀</button>
+                <h2 id="currentMonth" class="text-xl font-semibold"></h2>
+                <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-200 rounded-lg">▶</button>
+            </div>
+
+            <!-- Calendar -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="calendar-grid bg-gray-50 border-b">
+                    <div class="p-3 text-center font-medium text-gray-600">อา</div>
+                    <div class="p-3 text-center font-medium text-gray-600">จ</div>
+                    <div class="p-3 text-center font-medium text-gray-600">อ</div>
+                    <div class="p-3 text-center font-medium text-gray-600">พ</div>
+                    <div class="p-3 text-center font-medium text-gray-600">พฤ</div>
+                    <div class="p-3 text-center font-medium text-gray-600">ศ</div>
+                    <div class="p-3 text-center font-medium text-gray-600">ส</div>
+                </div>
+                <div id="calendarBody" class="calendar-grid bg-white">
+                    <!-- Calendar days will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Appointment Modal -->
+    <div id="appointmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 id="modalTitle" class="text-xl font-semibold mb-4">สร้างนัดใหม่</h2>
+            <form id="appointmentForm">
+                <input type="hidden" id="appointmentId">
+                <!-- Smart Input: Auto-parse name and phone -->
+                <!-- Smart Input: Auto-parse name and phone -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">
+                        ข้อมูลลูกค้า (พิมพ์ชื่อและเบอร์โทรในช่องเดียว)
+                        <span class="text-xs text-gray-500 ml-2">ระบบจะแยกให้อัตโนมัติ</span>
+                    </label>
+                    <input type="text" id="smartInput" placeholder="เช่น: คุณสมศรี 0812345678 หรือ สมศรี แสงดี 081-234-5678" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                           oninput="parseSmartInput(this.value)">
+                    <div class="flex gap-2 text-sm">
+                        <span id="parsedName" class="text-green-600"></span>
+                        <span id="parsedPhone" class="text-blue-600"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">ชื่อลูกค้า *</label>
+                    <input type="text" id="customerName" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" required readonly>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">เบอร์โทร</label>
+                    <input type="tel" id="phone" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" readonly>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">สาขา *</label>
+                    <select id="branch" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <option value="">-- เลือกสาขา --</option>
+                        <option value="ngamwongwan">🏥 สาขางามวงศ์วาน</option>
+                        <option value="ratchathewi">🏥 สาขาราชเทวี</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">บริการ *</label>
+                    <input type="text" id="service" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">วันที่ *</label>
+                        <input type="date" id="date" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">เวลา *</label>
+                        <input type="time" id="time" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">สถานะ</label>
+                    <select id="status" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="new">🔵 นัดใหม่</option>
+                        <option value="confirmed">🟡 คอนเฟิร์มแล้ว</option>
+                        <option value="arrived">🟣 ลูกค้ามาถึง</option>
+                        <option value="completed">🟢 เสร็จสิ้น</option>
+                        <option value="cancelled">⚪ ยกเลิก</option>
+                        <option value="waiting">🩷 รอตอบ</option>
+                        <option value="problem">🔴 มีปัญหา</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">หมายเหตุ</label>
+                    <textarea id="notes" rows="3" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition">
+                        บันทึก
+                    </button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
+                        ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Day Appointments Modal -->
+    <div id="dayModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="dayModalTitle" class="text-xl font-semibold">นัดหมายวันที่</h2>
+                <button onclick="closeDayModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div id="dayAppointments" class="space-y-3">
+                <!-- Appointments will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ State ============
+        let currentUser = null;
+        let appointments = [];
+        let currentDate = new Date();
+        const API_URL = '';
+
+        const STATUS_COLORS = {
+            'new': 'bg-blue-500',
+            'confirmed': 'bg-yellow-500',
+            'arrived': 'bg-purple-500',
+            'completed': 'bg-green-500',
+            'cancelled': 'bg-gray-400',
+            'waiting': 'bg-pink-500',
+            'problem': 'bg-red-500',
+        };
+
+        const STATUS_LABELS = {
+            'new': 'นัดใหม่',
+            'confirmed': 'คอนเฟิร์มแล้ว',
+            'arrived': 'ลูกค้ามาถึง',
+            'completed': 'เสร็จสิ้น',
+            'cancelled': 'ยกเลิก',
+            'waiting': 'รอตอบ',
+            'problem': 'มีปัญหา',
+        };
+
+        // ============ Auth ============
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // Simple auth (in production, use proper authentication)
+            if (password === 'jinsoo2024') {
+                currentUser = username;
+                document.getElementById('currentUser').textContent = username;
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                loadAppointments();
+            } else {
+                alert('รหัสผ่านไม่ถูกต้อง');
+            }
+        });
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('loginForm').reset();
+        }
+
+        // ============ Calendar ============
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            document.getElementById('currentMonth').textContent = 
+                new Date(year, month).toLocaleDateString('th-TH', { year: 'numeric', month: 'long' });
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const calendarBody = document.getElementById('calendarBody');
+            calendarBody.innerHTML = '';
+            
+            // Empty cells before first day
+            for (let i = 0; i < firstDay; i++) {
+                calendarBody.innerHTML += '<div class="calendar-day bg-gray-50"></div>';
+            }
+            
+            // Days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayAppointments = appointments.filter(apt => apt.date === dateStr && apt.status !== 'cancelled');
+                
+                let dots = '';
+                dayAppointments.slice(0, 5).forEach(apt => {
+                    dots += `<span class="status-dot ${STATUS_COLORS[apt.status] || 'bg-gray-400'}"></span>`;
+                });
+                if (dayAppointments.length > 5) {
+                    dots += `<span class="text-xs text-gray-500">+${dayAppointments.length - 5}</span>`;
+                }
+                
+                const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+                const bgClass = isToday ? 'bg-blue-50 border-blue-300' : 'bg-white hover:bg-gray-50';
+                
+                calendarBody.innerHTML += `
+                    <div class="calendar-day ${bgClass} border p-2 cursor-pointer transition" onclick="showDayAppointments('${dateStr}')">
+                        <div class="font-medium ${isToday ? 'text-blue-600' : 'text-gray-700'}">${day}</div>
+                        <div class="flex flex-wrap gap-1 mt-1">${dots}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        // ============ Appointments ============
+        async function loadAppointments() {
+            try {
+                const response = await fetch(`${API_URL}/api/appointments`);
+                const data = await response.json();
+                appointments = data.appointments || [];
+                renderCalendar();
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                // Use mock data for demo
+                appointments = [];
+                renderCalendar();
+            }
+        }
+
+        function showDayAppointments(date) {
+            const dayAppointments = appointments.filter(apt => apt.date === date);
+            document.getElementById('dayModalTitle').textContent = `นัดหมายวันที่ ${new Date(date).toLocaleDateString('th-TH')}`;
+            
+            const container = document.getElementById('dayAppointments');
+            if (dayAppointments.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">ไม่มีนัดหมาย</p>';
+            } else {
+                const BRANCH_LABELS = {
+                    'ngamwongwan': '🏥 งามวงศ์วาน',
+                    'ratchathewi': '🏥 ราชเทวี'
+                };
+                container.innerHTML = dayAppointments.map(apt => `
+                    <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="editAppointment('${apt.id}')">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium">${apt.time} - ${apt.customerName}</div>
+                                <div class="text-sm text-blue-600 font-medium">${BRANCH_LABELS[apt.branch] || apt.branch}</div>
+                                <div class="text-gray-600">${apt.service}</div>
+                                <div class="text-sm text-gray-500">${apt.phone || 'ไม่มีเบอร์โทร'}</div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-white text-sm ${STATUS_COLORS[apt.status] || 'bg-gray-400'}">
+                                ${STATUS_LABELS[apt.status] || apt.status}
+                            </span>
+                        </div>
+                        ${apt.notes ? `<div class="mt-2 text-sm text-gray-600">หมายเหตุ: ${apt.notes}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('dayModal').classList.remove('hidden');
+        }
+
+        function closeDayModal() {
+            document.getElementById('dayModal').classList.add('hidden');
+        }
+
+        // ============ Add/Edit Modal ============
+        function showAddModal() {
+            document.getElementById('modalTitle').textContent = 'สร้างนัดใหม่';
+            document.getElementById('appointmentForm').reset();
+            document.getElementById('appointmentId').value = '';
+            document.getElementById('appointmentModal').classList.remove('hidden');
+        }
+
+        function editAppointment(id) {
+            const apt = appointments.find(a => a.id === id);
+            if (!apt) return;
+            
+            document.getElementById('modalTitle').textContent = 'แก้ไขนัดหมาย';
+            document.getElementById('appointmentId').value = apt.id;
+            document.getElementById('customerName').value = apt.customerName;
+            document.getElementById('phone').value = apt.phone;
+            document.getElementById('branch').value = apt.branch || '';
+            document.getElementById('service').value = apt.service;
+            document.getElementById('date').value = apt.date;
+            document.getElementById('time').value = apt.time;
+            document.getElementById('status').value = apt.status;
+            document.getElementById('notes').value = apt.notes;
+            
+            document.getElementById('dayModal').classList.add('hidden');
+            document.getElementById('appointmentModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('appointmentModal').classList.add('hidden');
+        }
+
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                customerName: document.getElementById('customerName').value,
+                phone: document.getElementById('phone').value,
+                branch: document.getElementById('branch').value,
+                service: document.getElementById('service').value,
+                date: document.getElementById('date').value,
+                time: document.getElementById('time').value,
+                status: document.getElementById('status').value,
+                notes: document.getElementById('notes').value,
+                staff: currentUser,
+            };
+            
+            const id = document.getElementById('appointmentId').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_URL}/api/appointments/${id}` : `${API_URL}/api/appointments`;
+            
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    loadAppointments();
+                } else {
+                    alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+                }
+            } catch (error) {
+                console.error('Error saving appointment:', error);
+                // For demo, just add to local array
+                if (!id) {
+                    appointments.push({
+                        id: 'APT-' + Date.now(),
+                        ...data,
+                        createdAt: new Date().toISOString(),
+                    });
+                } else {
+                    const idx = appointments.findIndex(a => a.id === id);
+                    if (idx !== -1) appointments[idx] = { ...appointments[idx], ...data };
+                }
+                closeModal();
+                renderCalendar();
+            }
+        });
+
+        // ============ Smart Input Parser ============
+        function parseSmartInput(text) {
+            if (!text) {
+                document.getElementById('customerName').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('parsedName').textContent = '';
+                document.getElementById('parsedPhone').textContent = '';
+                return;
+            }
+            
+            // Thai phone number patterns: 0xx-xxx-xxxx, 0xxxxxxxx, 0xx xxx xxxx
+            const phonePatterns = [
+                /(\d{3})[-\s]?(\d{3})[-\s]?(\d{4})/,  // 081-234-5678 or 081 234 5678
+                /(\d{2})[-\s]?(\d{3})[-\s]?(\d{4})/,  // 02-234-5678
+                /(\d{10})/,                            // 0812345678
+                /(\d{9})/,                             // 811234567 (without leading 0)
+            ];
+            
+            let phone = '';
+            let name = text;
+            
+            // Try to find phone number
+            for (const pattern of phonePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    phone = match[0].replace(/[-\s]/g, '');
+                    // Ensure phone starts with 0
+                    if (phone.length === 9 && !phone.startsWith('0')) {
+                        phone = '0' + phone;
+                    }
+                    // Remove phone from name
+                    name = text.replace(match[0], '').trim();
+                    break;
+                }
+            }
+            
+            // Clean up name (remove extra spaces)
+            name = name.replace(/\s+/g, ' ').trim();
+            
+            // Update fields
+            document.getElementById('customerName').value = name;
+            document.getElementById('phone').value = phone;
+            
+            // Show parsed result
+            document.getElementById('parsedName').textContent = name ? `✓ ชื่อ: ${name}` : '';
+            document.getElementById('parsedPhone').textContent = phone ? `✓ เบอร์: ${phone}` : '';
+        }
+
+        // ============ Manual Edit Toggle ============
+        function toggleManualEdit() {
+            const nameField = document.getElementById('customerName');
+            const phoneField = document.getElementById('phone');
+            const isReadonly = nameField.hasAttribute('readonly');
+            
+            if (isReadonly) {
+                nameField.removeAttribute('readonly');
+                phoneField.removeAttribute('readonly');
+                nameField.classList.remove('bg-gray-50');
+                phoneField.classList.remove('bg-gray-50');
+                nameField.classList.add('bg-white');
+                phoneField.classList.add('bg-white');
+            } else {
+                nameField.setAttribute('readonly', true);
+                phoneField.setAttribute('readonly', true);
+                nameField.classList.add('bg-gray-50');
+                phoneField.classList.add('bg-gray-50');
+                nameField.classList.remove('bg-white');
+                phoneField.classList.remove('bg-white');
+            }
+        }
+
+        // Initialize
+        renderCalendar();
+    </script>
+</body>
+</html>
