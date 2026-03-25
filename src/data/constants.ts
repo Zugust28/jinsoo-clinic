@@ -42,19 +42,19 @@ export const TIME_SLOTS = [
 ];
 
 export function generateHN(existingCustomers: { hn: string }[]): string {
-  const year = new Date().getFullYear();
+  // รูปแบบใหม่: 22XXXXX (6 หลัก ขึ้นต้นด้วย 22)
   const existingHNs = existingCustomers
     .map(c => c.hn)
-    .filter(hn => hn.startsWith(`J-${year}`));
-  
+    .filter(hn => /^22\d{5}$/.test(hn));
+
   const maxNum = existingHNs.reduce((max, hn) => {
-    const match = hn.match(/J-\d{4}-(\d{5})/);
+    const match = hn.match(/^22(\d{5})$/);
     if (match) {
       return Math.max(max, parseInt(match[1], 10));
     }
     return max;
   }, 0);
-  
+
   const nextNum = (maxNum + 1).toString().padStart(5, '0');
-  return `J-${year}-${nextNum}`;
+  return `22${nextNum}`;
 }
